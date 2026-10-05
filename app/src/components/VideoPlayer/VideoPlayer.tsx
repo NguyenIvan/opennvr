@@ -98,6 +98,10 @@ export interface VideoPlayerProps {
       caller and uses the compact loading and error states — a wall of
       tiles that labels its own feeds. */
   chrome?: 'full' | 'controls' | 'none'
+  /** Live mode: never stop auto-reconnecting. After the fast budget is spent,
+      keep retrying at the 30s cap (±20% jitter). For unattended walls/kiosks
+      where nobody can press Retry. Default false (unchanged behaviour). */
+  persistentRetry?: boolean
 }
 
 export interface VideoPlayerHandle {
@@ -135,6 +139,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       cameraId = null,
       showDetections = false,
       chrome = 'full',
+      persistentRetry = false,
     },
     ref
   ) {
@@ -339,13 +344,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         return
       }
       if (retryTimerRef.current) return // one pending retry at a time
-      if (retryCountRef.current >= MAX_AUTO_RETRIES) {
+      if (retryCountRef.current >= MAX_AUTO_RETRIES && !persistentRetry) {
         setIsReconnecting(false)
         setError(failMessage)
         setIsLoading(false)
         return
       }
-      const delay = Math.min(2000 * 2 ** retryCountRef.current, 30000)
+      const base = Math.min(2000 * 2 ** retryCountRef.current, 30000)
+      // Jitter keeps a wall of tiles from hammering MediaMTX in lockstep
+      // after a restart.
+      const delay = persistentRetry ? Math.round(base * (0.8 + Math.random() * 0.4)) : base
       retryCountRef.current += 1
       setIsReconnecting(true)
       setError(null)
@@ -353,7 +361,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         retryTimerRef.current = null
         restartRef.current()
       }, delay)
-    }, [mode])
+    }, [mode, persistentRetry])
 
     // The video-element error listener is bound once, on mount, so it reaches
     // the current scheduler through a ref instead of capturing the one that
@@ -597,6 +605,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               // failing while MediaMTX is briefly unreachable).
               console.log('[HLS] Attempting network error recovery...')
               scheduleAutoRetry(msg)
+            } else if (persistentRetry) {
+              scheduleAutoRetry(msg)
             } else {
               setError(msg)
             }
@@ -606,7 +616,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         setError('HLS not supported')
         setIsLoading(false)
       }
-    }, [hlsUrl, mediamtxToken, isMuted, autoPlay, onError, scheduleAutoRetry])
+    }, [hlsUrl, mediamtxToken, isMuted, autoPlay, onError, scheduleAutoRetry, persistentRetry])
 
     // Setup MP4 playback with optimized loading for fast start
     const setupMP4 = useCallback(() => {
