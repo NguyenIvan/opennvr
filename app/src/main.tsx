@@ -32,6 +32,7 @@ import { Login } from './views/Login'
 import { MFASetup } from './views/MFASetup'
 import { MFAVerify } from './views/MFAVerify'
 import { I18nProvider } from './i18n'
+import { CameraStatusProvider } from './hooks/useCameraStatus'
 
 // Views are lazy-loaded so each route becomes its own chunk instead of one
 // monolithic bundle. Auth/MFA stay eager: they gate first paint.
@@ -75,11 +76,13 @@ const importDashboard = reloadOnStale(() => import('./views/Dashboard'))
 const importLiveView = reloadOnStale(() => import('./views/LiveView'))
 const importPlaybackView = reloadOnStale(() => import('./views/PlaybackView'))
 const importSyncPlayback = reloadOnStale(() => import('./views/SyncPlayback'))
+const importGridView = reloadOnStale(() => import('./views/grid/GridView'))
 
 const Dashboard = lazy(() => importDashboard().then((m) => ({ default: m.Dashboard })))
 const LiveView = lazy(() => importLiveView().then((m) => ({ default: m.LiveView })))
 const PlaybackView = lazy(() => importPlaybackView().then((m) => ({ default: m.PlaybackView })))
 const SyncPlayback = lazy(() => importSyncPlayback().then((m) => ({ default: m.SyncPlayback })))
+const GridView = lazy(() => importGridView().then((m) => ({ default: m.GridView })))
 const Cameras = lazy(reloadOnStale(() => import('./views/Cameras').then((m) => ({ default: m.Cameras }))))
 const Vehicles = lazy(reloadOnStale(() => import('./views/Vehicles').then((m) => ({ default: m.Vehicles }))))
 const Occupancy = lazy(reloadOnStale(() => import('./views/Occupancy').then((m) => ({ default: m.Occupancy }))))
@@ -121,6 +124,7 @@ const routeWarmups: Array<[RegExp, () => Promise<unknown>]> = [
   [/^\/playback\/sync/, importSyncPlayback],
   [/^\/playback/, importPlaybackView],
   [/^\/live/, importLiveView],
+  [/^\/grid/, importGridView],
   [/^\/$/, importDashboard],
 ]
 try {
@@ -150,6 +154,16 @@ function ProtectedShell() {
   if (!user) return <Login />
   if (!user.mfa_enabled) return <MFASetup />
   return <AppShell />
+}
+
+// Auth/MFA gate without AppShell chrome, for full-screen surfaces like /grid.
+// AppShell normally mounts CameraStatusProvider, so mount it here too.
+function ProtectedBare({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="fixed inset-x-0 top-0 h-dvh bg-black" />
+  if (!user) return <Login />
+  if (!user.mfa_enabled) return <MFASetup />
+  return <CameraStatusProvider>{children}</CameraStatusProvider>
 }
 
 function SuspenseOutlet() {
@@ -216,6 +230,7 @@ const router = createBrowserRouter([
       },
     ],
   },
+  { path: '/grid', element: <ProtectedBare>{lazyRoute(<GridView />)}</ProtectedBare> },
   { path: '/login', element: <Login /> },
   { path: '/first-time-setup', element: lazyRoute(<FirstTimeSetup />) },
   { path: '/register', element: lazyRoute(<Register />) },
