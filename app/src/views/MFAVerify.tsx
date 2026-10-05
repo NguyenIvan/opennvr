@@ -22,10 +22,12 @@ import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n'
 import { AlertCircle, ArrowLeft, Clock, Loader2, ShieldCheck } from 'lucide-react'
 import { AuthAlert, AuthLayout, authButton, authLink } from '../components/AuthLayout'
+import { safeReturnTo } from '../lib/returnTo'
 
 type LocationState = {
   username?: string
   password?: string
+  returnTo?: string
 }
 
 export function MFAVerify() {
@@ -33,7 +35,7 @@ export function MFAVerify() {
   const { state } = useLocation()
   const navigate = useNavigate()
   const { login, loading, error } = useAuth()
-  const { username, password } = (state || {}) as LocationState
+  const { username, password, returnTo } = (state || {}) as LocationState
 
   const [code, setCode] = useState('')
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0)
@@ -60,7 +62,7 @@ export function MFAVerify() {
     if (!username || !password || retryAfterSeconds > 0) return
     try {
       await login(username, password, code)
-      navigate('/')
+      navigate(safeReturnTo(returnTo), { replace: true })
     } catch (e: any) {
       if (e?.accountLocked) {
         setRetryAfterSeconds(Math.max(0, Number(e?.retryAfterSeconds || 0)))

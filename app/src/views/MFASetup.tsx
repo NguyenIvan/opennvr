@@ -17,11 +17,12 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toDataURL } from 'qrcode'
 import { apiService } from '../lib/apiService'
 import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n'
+import { safeReturnTo } from '../lib/returnTo'
 
 export function MFASetup() {
   const { t } = useTranslation()
@@ -34,12 +35,14 @@ export function MFASetup() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = safeReturnTo(location.pathname + location.search)
 
   useEffect(() => {
     let mounted = true
     // If user already has MFA enabled, go home
     if (user?.mfa_enabled) {
-      navigate('/')
+      navigate(returnTo, { replace: true })
       return
     }
     ;(async () => {
@@ -63,7 +66,7 @@ export function MFASetup() {
       }
     })()
     return () => { mounted = false }
-  }, [user, navigate])
+  }, [user, navigate, returnTo])
 
   const onVerify = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,7 +74,7 @@ export function MFASetup() {
     try {
       await apiService.mfaVerify(code)
       await refreshUser()
-      navigate('/')
+      navigate(returnTo, { replace: true })
     } catch (e: any) {
       setError(e?.data?.detail || e?.message || 'Invalid code')
     }

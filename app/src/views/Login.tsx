@@ -17,13 +17,14 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Clock, Eye, EyeOff, KeyRound, Loader2, Lock, UserRound,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n'
 import { AuthAlert, AuthLayout, authButton, authFieldIcon, authInput, authLabel, authLink } from '../components/AuthLayout'
+import { safeReturnTo } from '../lib/returnTo'
 
 export function Login() {
   const { t } = useTranslation()
@@ -34,6 +35,8 @@ export function Login() {
   const [msg, setMsg] = useState<string | null>(null)
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0)
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = safeReturnTo(location.pathname + location.search)
 
   const formatRetryTime = (seconds: number) => {
     if (seconds <= 0) return '0s'
@@ -66,7 +69,7 @@ export function Login() {
     try {
       await login(username, password)
       setRetryAfterSeconds(0)
-      navigate('/')
+      navigate(returnTo, { replace: true })
     } catch (e: any) {
       if (e?.setupRequired) {
         navigate('/first-time-setup', { replace: true })
@@ -77,7 +80,7 @@ export function Login() {
         return
       }
       if (e?.mfaRequired) {
-        navigate('/mfa-verify', { state: { username, password } })
+        navigate('/mfa-verify', { state: { username, password, returnTo } })
         return
       }
       // other errors handled in context
