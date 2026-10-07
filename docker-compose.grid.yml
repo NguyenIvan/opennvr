@@ -1,0 +1,6 @@
+# UNTRACKED local override for the /grid build test (do not commit).
+services:
+  opennvr-core:
+    image: ghcr.io/open-nvr/core:grid-1
+    environment:
+      - AGENT_LIVE_USE_SUBSTREAM=True
