@@ -153,3 +153,26 @@ deliberately **not** committed (ICE watcher, camera backup, probes, login helper
 | A just-deployed frontend change invisible | service-worker cache — hard-reload |
 | An external port check says closed | re-test: a single external check can return a transient failure |
 | Certificate renewal fails | port 80 forward / DNS no longer pointing here |
+
+## 10. Kiosk (secondary host)
+
+The chromeless views are meant to be driven full-screen by a kiosk browser on a
+small Linux box (cage/Wayland + Chrome, no desktop). Lessons from setting that up:
+
+* **cage needs a seat manager.** Without seatd (or a proper logind session) it
+  dies instantly with \"Could not get primary session\"/\"Could not open tty0\" and
+  a restart policy turns that into a tight crash loop. Install and enable seatd;
+  its socket is root:video, so the kiosk user needs the video group (Debian/Ubuntu
+  ship no seat group).
+* **Give the kiosk a runtime dir.** /run is tmpfs: either set RuntimeDirectory on
+  the unit or enable lingering for the user, otherwise XDG_RUNTIME_DIR points at a
+  directory that does not exist after a reboot.
+* **Contain the browser.** Cap the unit (MemoryHigh/MemoryMax, OOMScoreAdjust,
+  LimitCORE=0) so a crashing browser can never take the NVR down with it, and use
+  Restart=on-failure with a backoff rather than Restart=always.
+* **The views need a session.** /grid and /1 are ProtectedBare, so the kiosk
+  browser must log in once in its own profile; the kiosk URL is then
+  https://a1.sifu.art/grid (or /1?auto).
+* Kiosk boxes are often pre-SSE4.2 CPUs: NumPy 2.x wheels require the x86-64-v2
+  baseline, so an old machine cannot run the prebuilt images at all (see the CPU
+  check in the setup runbook).
