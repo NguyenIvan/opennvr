@@ -54,11 +54,18 @@ export function GridTile({ cam, index, playing }: {
   const usingSub = preferSub && !!sub
   const whep = rebaseToCurrentOrigin(usingSub ? sub : info.data?.urls?.webrtc)
   const hls = rebaseToCurrentOrigin(info.data?.urls?.hls)
+  // Refs keep onError's identity stable: when the camera list refetches (status
+  // events, focus, 60s poll) these values can change, and an unstable onError
+  // re-runs VideoPlayer's setup effect and tears the stream down.
+  const usingSubRef = useRef(usingSub)
+  usingSubRef.current = usingSub
+  const liveOnlineRef = useRef(cam.live_online)
+  liveOnlineRef.current = cam.live_online
   const onError = useCallback((msg: string) => {
     // A 404 on the substream while the camera itself is up means this
     // camera has no substream path: use the main stream instead.
-    if (usingSub && msg === 'Camera offline' && cam.live_online) setPreferSub(false)
-  }, [usingSub, cam.live_online])
+    if (usingSubRef.current && msg === 'Camera offline' && liveOnlineRef.current) setPreferSub(false)
+  }, [])
 
   const live = state === 'online' || state === 'degraded'
 

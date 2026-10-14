@@ -191,6 +191,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     // rebuild the stream on every parent render.
     const onAuthExpiredRef = useRef(onAuthExpired)
     onAuthExpiredRef.current = onAuthExpired
+    // Same reason as onAuthExpired: onError is a parent callback whose
+    // identity can change (e.g. it closes over camera state), so reach it
+    // through a ref instead of listing it as a setup dep.
+    const onErrorRef = useRef(onError)
+    onErrorRef.current = onError
     const [isReconnecting, setIsReconnecting] = useState(false)
     // Coded frame size of the incoming stream, read from the video metadata.
     // null until known (or after the source is torn down).
@@ -486,7 +491,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
       } catch (e: any) {
         const msg = e?.message || 'WebRTC setup failed'
-        onError?.(msg)
+        onErrorRef.current?.(msg)
         if (msg === 'Camera offline') {
           // The path doesn't exist server-side — e.g. a MediaMTX restart and
           // this WHEP attempt raced the backend's re-provisioning. The
@@ -509,7 +514,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           scheduleAutoRetry(msg)
         }
       }
-    }, [whepUrl, mediamtxToken, onError, scheduleAutoRetry])
+    }, [whepUrl, mediamtxToken, scheduleAutoRetry])
 
     // Setup HLS
     const setupHLS = useCallback(async () => {
@@ -586,7 +591,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           if (data.fatal) {
             const msg = `HLS Error: ${data.details}`
             setIsLoading(false)
-            onError?.(msg)
+            onErrorRef.current?.(msg)
 
             // Auto-recover from errors
             if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -616,7 +621,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         setError('HLS not supported')
         setIsLoading(false)
       }
-    }, [hlsUrl, mediamtxToken, isMuted, autoPlay, onError, scheduleAutoRetry, persistentRetry])
+    }, [hlsUrl, mediamtxToken, isMuted, autoPlay, scheduleAutoRetry, persistentRetry])
 
     // Setup MP4 playback with optimized loading for fast start
     const setupMP4 = useCallback(() => {
@@ -740,7 +745,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           if (data.fatal) {
             const msg = `HLS Playback Error: ${data.details}`
             setIsLoading(false)
-            onError?.(msg)
+            onErrorRef.current?.(msg)
             
             // Try to recover from errors
             if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -768,7 +773,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         setIsLoading(false)
         onHlsPlaybackError?.()
       }
-    }, [hlsPlaybackUrl, isMuted, autoPlay, onError, onHlsPlaybackError])
+    }, [hlsPlaybackUrl, isMuted, autoPlay, onHlsPlaybackError])
 
     // Initialize player based on mode and stream type
     useEffect(() => {

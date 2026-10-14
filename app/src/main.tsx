@@ -77,12 +77,14 @@ const importLiveView = reloadOnStale(() => import('./views/LiveView'))
 const importPlaybackView = reloadOnStale(() => import('./views/PlaybackView'))
 const importSyncPlayback = reloadOnStale(() => import('./views/SyncPlayback'))
 const importGridView = reloadOnStale(() => import('./views/grid/GridView'))
+const importSingleView = reloadOnStale(() => import('./views/grid/SingleView'))
 
 const Dashboard = lazy(() => importDashboard().then((m) => ({ default: m.Dashboard })))
 const LiveView = lazy(() => importLiveView().then((m) => ({ default: m.LiveView })))
 const PlaybackView = lazy(() => importPlaybackView().then((m) => ({ default: m.PlaybackView })))
 const SyncPlayback = lazy(() => importSyncPlayback().then((m) => ({ default: m.SyncPlayback })))
 const GridView = lazy(() => importGridView().then((m) => ({ default: m.GridView })))
+const SingleView = lazy(() => importSingleView().then((m) => ({ default: m.SingleView })))
 const Cameras = lazy(reloadOnStale(() => import('./views/Cameras').then((m) => ({ default: m.Cameras }))))
 const Vehicles = lazy(reloadOnStale(() => import('./views/Vehicles').then((m) => ({ default: m.Vehicles }))))
 const Occupancy = lazy(reloadOnStale(() => import('./views/Occupancy').then((m) => ({ default: m.Occupancy }))))
@@ -125,6 +127,7 @@ const routeWarmups: Array<[RegExp, () => Promise<unknown>]> = [
   [/^\/playback/, importPlaybackView],
   [/^\/live/, importLiveView],
   [/^\/grid/, importGridView],
+  [/^\/1$/, importSingleView],
   [/^\/$/, importDashboard],
 ]
 try {
@@ -231,6 +234,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: '/grid', element: <ProtectedBare>{lazyRoute(<GridView />)}</ProtectedBare> },
+  { path: '/1', element: <ProtectedBare>{lazyRoute(<SingleView />)}</ProtectedBare> },
   { path: '/login', element: <Login /> },
   { path: '/first-time-setup', element: lazyRoute(<FirstTimeSetup />) },
   { path: '/register', element: lazyRoute(<Register />) },
