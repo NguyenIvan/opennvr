@@ -55,6 +55,12 @@ secrets/
 credentials.json
 token.json
 
+# Operator credentials written on this host (OpenNVR admin login + TOTP
+# secret, plus the API backup that embeds camera credentials). Never commit.
+ADMIN_CREDENTIALS.txt
+*_CREDENTIALS.txt
+*opennvr-cameras-backup*.json
+
 # ============================================
 # GENERATED BUILD ARTIFACTS
 # ============================================
